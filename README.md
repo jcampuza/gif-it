@@ -38,6 +38,18 @@ The default shortcut is `Control-Option-G`. It can be changed in Settings.
 - Swift 6.2 and a compatible macOS SDK
 - Screen Recording permission for the packaged application
 
+## Download
+
+ARM-based Mac builds are available from
+[GitHub Releases](https://github.com/jcampuza/gif-it/releases/latest). Download
+the release ZIP, extract `Gif It.app`, and move it to `/Applications`.
+
+Release builds are currently ad-hoc signed rather than Apple-notarized. On the
+first launch, macOS will block the app because it is from an unidentified
+developer. After attempting to open it, go to **System Settings → Privacy &
+Security** and choose **Open Anyway**. You only need to approve that downloaded
+build once.
+
 ## Build and run
 
 Create and run the packaged debug app:
@@ -146,6 +158,19 @@ swift build -c release
 The test suite covers state transitions, startup cancellation, stale session
 events, repeated stops, recovery policy, clipboard failures, folder failures,
 atomic file replacement, cache pruning, GIF metadata, and settings persistence.
+
+## Creating a release
+
+Push a semantic version tag to build and publish an ARM-only GitHub Release:
+
+```sh
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+The release workflow validates the source, creates an ad-hoc-signed app bundle,
+checks its signature and version metadata, packages it with `ditto`, generates
+a SHA-256 checksum, and attaches both files to the GitHub Release.
 
 ## Current scope
 

@@ -4,6 +4,8 @@ set -eu
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 CONFIGURATION=${1:-${CONFIGURATION:-debug}}
 SIGNING_IDENTITY=${GIF_IT_SIGNING_IDENTITY:-}
+VERSION=${GIF_IT_VERSION:-}
+BUILD_NUMBER=${GIF_IT_BUILD_NUMBER:-}
 
 case "$CONFIGURATION" in
   debug)
@@ -49,9 +51,18 @@ xcrun swift "$ROOT/scripts/generate-icon.swift" "$APP/Contents/Resources/AppIcon
 plutil -replace CFBundleIdentifier -string "$BUNDLE_ID" "$APP/Contents/Info.plist"
 plutil -replace CFBundleName -string "$APP_NAME" "$APP/Contents/Info.plist"
 plutil -replace CFBundleDisplayName -string "$APP_NAME" "$APP/Contents/Info.plist"
+if [ -n "$VERSION" ]; then
+  plutil -replace CFBundleShortVersionString -string "$VERSION" "$APP/Contents/Info.plist"
+fi
+if [ -n "$BUILD_NUMBER" ]; then
+  plutil -replace CFBundleVersion -string "$BUILD_NUMBER" "$APP/Contents/Info.plist"
+fi
 xattr -cr "$APP"
 
-if [ -n "$SIGNING_IDENTITY" ]; then
+if [ "$SIGNING_IDENTITY" = "-" ]; then
+  codesign --force --sign - --identifier "$BUNDLE_ID" "$APP"
+  echo "Signed ad hoc." >&2
+elif [ -n "$SIGNING_IDENTITY" ]; then
   codesign --force --sign "$SIGNING_IDENTITY" --identifier "$BUNDLE_ID" "$APP"
   echo "Signed with stable identity: $SIGNING_IDENTITY" >&2
 else
