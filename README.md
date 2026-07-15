@@ -164,8 +164,9 @@ atomic file replacement, cache pruning, GIF metadata, and settings persistence.
 Push a semantic version tag to build and publish an ARM-only GitHub Release:
 
 ```sh
-git tag v0.1.0
-git push origin v0.1.0
+VERSION=0.1.1
+git tag "v$VERSION"
+git push origin "v$VERSION"
 ```
 
 The release workflow validates the source, creates an ad-hoc-signed app bundle,
