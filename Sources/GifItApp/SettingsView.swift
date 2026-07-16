@@ -31,6 +31,28 @@ struct SettingsView: View {
         }
         .pickerStyle(.segmented)
 
+        if model.settings.format == .gif {
+          Picker(
+            "GIF quality",
+            selection: Binding(
+              get: { model.settings.gifQuality },
+              set: { value in model.setGIFQuality(value) }
+            )
+          ) {
+            ForEach(GIFQuality.allCases, id: \.self) { quality in
+              Text(quality.displayName).tag(quality)
+            }
+          }
+          .help("Higher quality produces smoother, larger GIF files.")
+
+          Text(
+            "\(Int(model.settings.gifQuality.framesPerSecond)) fps · "
+              + "up to \(Int(model.settings.gifQuality.maximumPixelDimension)) px"
+          )
+          .font(.caption)
+          .foregroundStyle(.secondary)
+        }
+
         Picker(
           "Destination",
           selection: Binding(

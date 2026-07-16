@@ -165,6 +165,11 @@ final class AppModel: ObservableObject {
     persistSettings()
   }
 
+  func setGIFQuality(_ quality: GIFQuality) {
+    settings.gifQuality = quality
+    persistSettings()
+  }
+
   func setDestination(_ destination: DestinationKind) {
     settings.destination = destination
     persistSettings()
@@ -434,7 +439,11 @@ final class AppModel: ObservableObject {
       statusMessage = "Converting GIF… 0%"
       let destination = try await artifacts.makeFinalURL(for: .gif)
       do {
-        artifact = try await exporter.makeGIF(from: source, to: destination) {
+        artifact = try await exporter.makeGIF(
+          from: source,
+          to: destination,
+          quality: settings.gifQuality
+        ) {
           [weak self] progress in
           Task { @MainActor in
             guard let self else { return }

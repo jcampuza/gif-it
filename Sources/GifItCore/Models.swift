@@ -7,6 +7,36 @@ public enum CaptureFormat: String, Codable, CaseIterable, Sendable {
   public var fileExtension: String { rawValue }
 }
 
+public enum GIFQuality: String, Codable, CaseIterable, Sendable {
+  case low
+  case standard
+  case high
+
+  public var displayName: String {
+    switch self {
+    case .low: "Low"
+    case .standard: "Standard"
+    case .high: "High"
+    }
+  }
+
+  public var framesPerSecond: Double {
+    switch self {
+    case .low: 10
+    case .standard: 15
+    case .high: 20
+    }
+  }
+
+  public var maximumPixelDimension: Double {
+    switch self {
+    case .low: 640
+    case .standard: 960
+    case .high: 1_440
+    }
+  }
+}
+
 public enum DestinationKind: String, Codable, CaseIterable, Sendable {
   case clipboard
   case folder
@@ -54,6 +84,7 @@ public struct GlobalShortcut: Codable, Equatable, Sendable {
 
 public struct CaptureSettings: Codable, Equatable, Sendable {
   public var format: CaptureFormat
+  public var gifQuality: GIFQuality
   public var destination: DestinationKind
   public var folderPath: String?
   public var includesCursor: Bool
@@ -62,6 +93,7 @@ public struct CaptureSettings: Codable, Equatable, Sendable {
 
   public init(
     format: CaptureFormat = .gif,
+    gifQuality: GIFQuality = .standard,
     destination: DestinationKind = .clipboard,
     folderPath: String? = nil,
     includesCursor: Bool = true,
@@ -69,11 +101,33 @@ public struct CaptureSettings: Codable, Equatable, Sendable {
     shortcut: GlobalShortcut = .defaultShortcut
   ) {
     self.format = format
+    self.gifQuality = gifQuality
     self.destination = destination
     self.folderPath = folderPath
     self.includesCursor = includesCursor
     self.showsMouseClicks = showsMouseClicks
     self.shortcut = shortcut
+  }
+
+  private enum CodingKeys: String, CodingKey {
+    case format
+    case gifQuality
+    case destination
+    case folderPath
+    case includesCursor
+    case showsMouseClicks
+    case shortcut
+  }
+
+  public init(from decoder: any Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    format = try container.decode(CaptureFormat.self, forKey: .format)
+    gifQuality = try container.decodeIfPresent(GIFQuality.self, forKey: .gifQuality) ?? .standard
+    destination = try container.decode(DestinationKind.self, forKey: .destination)
+    folderPath = try container.decodeIfPresent(String.self, forKey: .folderPath)
+    includesCursor = try container.decode(Bool.self, forKey: .includesCursor)
+    showsMouseClicks = try container.decode(Bool.self, forKey: .showsMouseClicks)
+    shortcut = try container.decode(GlobalShortcut.self, forKey: .shortcut)
   }
 }
 

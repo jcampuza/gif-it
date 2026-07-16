@@ -48,6 +48,7 @@ protocol MediaExporting: Actor {
   func makeGIF(
     from source: URL,
     to destinationURL: URL,
+    quality: GIFQuality,
     progress: @escaping @Sendable (Double) -> Void
   ) async throws -> URL
 }

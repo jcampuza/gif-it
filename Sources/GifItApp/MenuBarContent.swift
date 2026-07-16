@@ -8,11 +8,21 @@ struct MenuBarContent: View {
   @Environment(\.openSettings) private var openSettings
 
   var body: some View {
-    Button("Capture Window…") {
-      model.requestCapture()
+    if let keyEquivalent = model.settings.shortcut.menuKeyEquivalent {
+      Button("Capture Window…") {
+        model.requestCapture()
+      }
+      .keyboardShortcut(
+        keyEquivalent,
+        modifiers: model.settings.shortcut.menuEventModifiers
+      )
+      .disabled(!model.canCapture)
+    } else {
+      Button("Capture Window…  \(model.settings.shortcut.displayName)") {
+        model.requestCapture()
+      }
+      .disabled(!model.canCapture)
     }
-    .keyboardShortcut("g", modifiers: [.control, .option])
-    .disabled(!model.canCapture)
 
     Button("Stop Recording") {
       Task { await model.stopRecording() }
@@ -44,5 +54,33 @@ struct MenuBarContent: View {
       requestQuit()
     }
     .keyboardShortcut("q")
+  }
+}
+
+private extension GlobalShortcut {
+  var menuKeyEquivalent: KeyEquivalent? {
+    switch keyLabel {
+    case "↩": .return
+    case "⇥": .tab
+    case "Space": .space
+    case "⌫": .delete
+    case "←": .leftArrow
+    case "→": .rightArrow
+    case "↓": .downArrow
+    case "↑": .upArrow
+    default:
+      keyLabel.count == 1
+        ? keyLabel.lowercased().first.map { KeyEquivalent($0) }
+        : nil
+    }
+  }
+
+  var menuEventModifiers: EventModifiers {
+    var value: EventModifiers = []
+    if modifiers.contains(.command) { value.insert(.command) }
+    if modifiers.contains(.option) { value.insert(.option) }
+    if modifiers.contains(.control) { value.insert(.control) }
+    if modifiers.contains(.shift) { value.insert(.shift) }
+    return value
   }
 }

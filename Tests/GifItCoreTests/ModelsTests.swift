@@ -5,10 +5,41 @@ import Testing
 @Test func defaultSettingsMatchPrimaryWorkflow() {
   let settings = CaptureSettings()
   #expect(settings.format == .gif)
+  #expect(settings.gifQuality == .standard)
   #expect(settings.destination == .clipboard)
   #expect(settings.includesCursor)
   #expect(settings.showsMouseClicks)
   #expect(settings.shortcut.displayName == "⌃⌥G")
+}
+
+@Test func gifQualityPresetsTradeSizeForDetail() {
+  #expect(GIFQuality.low.framesPerSecond < GIFQuality.standard.framesPerSecond)
+  #expect(GIFQuality.standard.framesPerSecond < GIFQuality.high.framesPerSecond)
+  #expect(GIFQuality.low.maximumPixelDimension < GIFQuality.standard.maximumPixelDimension)
+  #expect(GIFQuality.standard.maximumPixelDimension < GIFQuality.high.maximumPixelDimension)
+}
+
+@Test func captureSettingsDecodeLegacyDataWithStandardGIFQuality() throws {
+  let legacyJSON = #"""
+    {
+      "format": "gif",
+      "destination": "clipboard",
+      "includesCursor": true,
+      "showsMouseClicks": true,
+      "shortcut": {
+        "keyCode": 5,
+        "keyLabel": "G",
+        "modifiers": 6
+      }
+    }
+    """#
+
+  let settings = try JSONDecoder().decode(
+    CaptureSettings.self,
+    from: Data(legacyJSON.utf8)
+  )
+
+  #expect(settings.gifQuality == .standard)
 }
 
 @Test func artifactNamesAreStableAndAvoidCollisions() {

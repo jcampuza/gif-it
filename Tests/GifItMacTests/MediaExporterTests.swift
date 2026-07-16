@@ -1,6 +1,7 @@
 @preconcurrency import AVFoundation
 import CoreVideo
 import Foundation
+import GifItCore
 import GifItMac
 import ImageIO
 import Testing
@@ -22,6 +23,25 @@ import Testing
   let properties = CGImageSourceCopyProperties(imageSource, nil) as? [CFString: Any]
   let gif = properties?[kCGImagePropertyGIFDictionary] as? [CFString: Any]
   #expect(gif?[kCGImagePropertyGIFLoopCount] as? Int == 0)
+}
+
+@Test func mediaExporterAppliesGIFQualityFrameRate() async throws {
+  let root = FileManager.default.temporaryDirectory
+    .appendingPathComponent(UUID().uuidString, isDirectory: true)
+  try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+  defer { try? FileManager.default.removeItem(at: root) }
+  let source = root.appendingPathComponent("fixture.mp4")
+  let lowDestination = root.appendingPathComponent("low.gif")
+  let highDestination = root.appendingPathComponent("high.gif")
+  try await makeFixtureVideo(at: source)
+
+  let exporter = MediaExporter()
+  _ = try await exporter.makeGIF(from: source, to: lowDestination, quality: .low) { _ in }
+  _ = try await exporter.makeGIF(from: source, to: highDestination, quality: .high) { _ in }
+
+  let lowSource = try #require(CGImageSourceCreateWithURL(lowDestination as CFURL, nil))
+  let highSource = try #require(CGImageSourceCreateWithURL(highDestination as CFURL, nil))
+  #expect(CGImageSourceGetCount(lowSource) < CGImageSourceGetCount(highSource))
 }
 
 private func makeFixtureVideo(at url: URL) async throws {

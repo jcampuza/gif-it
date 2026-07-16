@@ -35,14 +35,16 @@ public actor MediaExporter {
   public func makeGIF(
     from source: URL,
     to destinationURL: URL,
+    quality: GIFQuality = .standard,
     progress: @escaping @Sendable (Double) -> Void
   ) async throws -> URL {
     let asset = AVURLAsset(url: source)
     let tracks = try await asset.loadTracks(withMediaType: .video)
     guard let track = tracks.first else { throw MediaExporterError.missingVideoTrack }
     let duration = try await asset.load(.duration)
-    let durationSeconds = max(duration.seconds, 1.0 / 15.0)
-    let frameCount = max(1, Int(ceil(durationSeconds * 15)))
+    let framesPerSecond = quality.framesPerSecond
+    let durationSeconds = max(duration.seconds, 1.0 / framesPerSecond)
+    let frameCount = max(1, Int(ceil(durationSeconds * framesPerSecond)))
 
     let reader: AVAssetReader
     do {
@@ -79,7 +81,7 @@ public actor MediaExporter {
       throw MediaExporterError.readerFailed(reader.error)
     }
 
-    let frameDelay = 1.0 / 15.0
+    let frameDelay = 1.0 / framesPerSecond
     let frameProperties =
       [
         kCGImagePropertyGIFDictionary: [
@@ -100,7 +102,10 @@ public actor MediaExporter {
       guard relativeTime + 0.001 >= nextTargetTime else { continue }
       guard
         let pixelBuffer = CMSampleBufferGetImageBuffer(sample),
-        let image = makeImage(from: pixelBuffer)
+        let image = makeImage(
+          from: pixelBuffer,
+          maximumPixelDimension: quality.maximumPixelDimension
+        )
       else { continue }
 
       CGImageDestinationAddImage(destination, image, frameProperties)
@@ -128,10 +133,13 @@ public actor MediaExporter {
     return destinationURL
   }
 
-  private func makeImage(from pixelBuffer: CVPixelBuffer) -> CGImage? {
+  private func makeImage(
+    from pixelBuffer: CVPixelBuffer,
+    maximumPixelDimension: Double
+  ) -> CGImage? {
     let source = CIImage(cvPixelBuffer: pixelBuffer)
     let longestEdge = max(source.extent.width, source.extent.height)
-    let scale = min(1, 960 / longestEdge)
+    let scale = min(1, maximumPixelDimension / longestEdge)
     let scaled = source.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
     return context.createCGImage(scaled, from: scaled.extent.integral)
   }

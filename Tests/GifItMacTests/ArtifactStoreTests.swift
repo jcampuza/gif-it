@@ -65,6 +65,7 @@ private final class PasteboardItemStub: ArtifactPasteboardItemBuilding {
   let persistence = SettingsPersistence(defaults: defaults)
   var settings = CaptureSettings()
   settings.format = .mp4
+  settings.gifQuality = .high
   settings.destination = .folder
   settings.folderPath = "/tmp/Exports"
 
