@@ -25,7 +25,7 @@ protocol ArtifactStoring: Actor {
   func makeFinalURL(for format: CaptureFormat, date: Date) throws -> URL
   func promoteMP4(_ source: URL, date: Date) throws -> URL
   func remove(_ url: URL)
-  func prune(now: Date, maximumAge: TimeInterval, limit: Int) throws
+  func prune(now: Date, maximumAge: TimeInterval, limit: Int, preserving: Set<URL>) throws
 }
 
 extension ArtifactStoring {
@@ -37,8 +37,8 @@ extension ArtifactStoring {
     try promoteMP4(source, date: Date())
   }
 
-  func prune() throws {
-    try prune(now: Date(), maximumAge: 86_400, limit: 10)
+  func prune(preserving: Set<URL> = []) throws {
+    try prune(now: Date(), maximumAge: 86_400, limit: 10, preserving: preserving)
   }
 }
 
@@ -62,6 +62,8 @@ protocol ArtifactDelivering: AnyObject {
     format: CaptureFormat,
     settings: CaptureSettings
   ) throws -> URL
+
+  func copyToClipboard(artifact: URL, format: CaptureFormat) throws
 }
 
 extension ArtifactDelivery: ArtifactDelivering {}

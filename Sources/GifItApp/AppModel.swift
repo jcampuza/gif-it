@@ -14,6 +14,7 @@ final class AppModel: ObservableObject {
 
   private let persistence: SettingsPersistence
   private let picker: WindowPickerCoordinator
+  private let frontmostWindow: FrontmostWindowLocator
   private let recorder: any RecordingControlling
   private let exporter: any MediaExporting
   private let delivery: any ArtifactDelivering
@@ -28,6 +29,8 @@ final class AppModel: ObservableObject {
   private var currentWorkingURL: URL?
   private var workflowID: UInt64 = 0
   private var startTask: Task<Void, Never>?
+  private var resolveTask: Task<Void, Never>?
+  private var isPickerDrivenCapture = false
   private var finalizationTask: Task<Void, Never>?
   private var autoStopTask: Task<Void, Never>?
   private var shortcutMonitor: Any?
@@ -38,6 +41,7 @@ final class AppModel: ObservableObject {
   init(
     persistence: SettingsPersistence = SettingsPersistence(),
     picker: WindowPickerCoordinator = WindowPickerCoordinator(),
+    frontmostWindow: FrontmostWindowLocator = FrontmostWindowLocator(),
     recorder: any RecordingControlling = ScreenCaptureRecorder(),
     exporter: any MediaExporting = MediaExporter(),
     delivery: any ArtifactDelivering = ArtifactDelivery(),
@@ -48,6 +52,7 @@ final class AppModel: ObservableObject {
   ) {
     self.persistence = persistence
     self.picker = picker
+    self.frontmostWindow = frontmostWindow
     self.recorder = recorder
     self.exporter = exporter
     self.delivery = delivery
@@ -125,19 +130,51 @@ final class AppModel: ObservableObject {
     }
   }
 
+  /// Records the window that is already in front, with no picker to click through.
   func requestCapture() {
-    guard canCapture else { return }
+    guard canCapture, ensureScreenRecordingAccess() else { return }
+    isPickerDrivenCapture = false
+    transition(.requestPicker)
+    statusMessage = "Starting recording…"
+    let id = workflowID
+    resolveTask = Task { @MainActor [weak self] in
+      guard let self else { return }
+      defer { self.resolveTask = nil }
+      do {
+        let filter = try await self.frontmostWindow.locate()
+        guard self.phase == .picking, id == self.workflowID, !self.isTerminating else { return }
+        self.launchRecording(filter: filter)
+      } catch {
+        guard self.phase == .picking, id == self.workflowID, !self.isTerminating else { return }
+        // No window qualified (for example, only overlays are on screen). Fall back to the
+        // system picker rather than failing the capture outright.
+        self.presentPicker()
+      }
+    }
+  }
+
+  /// Opens the system window picker so a background window can be chosen explicitly.
+  func requestCaptureWithPicker() {
+    guard canCapture, ensureScreenRecordingAccess() else { return }
+    transition(.requestPicker)
+    presentPicker()
+  }
+
+  private func ensureScreenRecordingAccess() -> Bool {
     screenRecordingGranted = ScreenRecordingPermission.isGranted
     if !screenRecordingGranted {
       screenRecordingGranted = ScreenRecordingPermission.request()
       guard screenRecordingGranted else {
         transition(.failed("Screen Recording permission is required"))
         statusMessage = "Allow Gif It in Privacy & Security > Screen Recording"
-        return
+        return false
       }
     }
+    return true
+  }
 
-    transition(.requestPicker)
+  private func presentPicker() {
+    isPickerDrivenCapture = true
     statusMessage = "Choose a window"
     picker.present()
   }
@@ -245,6 +282,21 @@ final class AppModel: ObservableObject {
     }
   }
 
+  /// Puts the most recent recording back on the clipboard after something else replaced it.
+  func recopyLastRecording() {
+    guard let artifact = lastArtifact, isPlausibleArtifact(artifact) else {
+      statusMessage = "No recording available to copy"
+      return
+    }
+    let format = CaptureFormat(rawValue: artifact.pathExtension.lowercased()) ?? settings.format
+    do {
+      try delivery.copyToClipboard(artifact: artifact, format: format)
+      statusMessage = "Copied \(artifact.lastPathComponent)"
+    } catch {
+      statusMessage = error.localizedDescription
+    }
+  }
+
   /// Stops accepting UI work and gives an in-flight recording its normal finalization path.
   func prepareForTermination() async {
     guard !isTerminating else {
@@ -257,6 +309,8 @@ final class AppModel: ObservableObject {
     recordingPanel.hide()
     autoStopTask?.cancel()
     autoStopTask = nil
+    resolveTask?.cancel()
+    resolveTask = nil
 
     switch TerminationAction(phase: phase) {
     case .cancelStartupAndRecover:
@@ -282,6 +336,7 @@ final class AppModel: ObservableObject {
     startTask?.cancel()
     finalizationTask?.cancel()
     autoStopTask?.cancel()
+    resolveTask?.cancel()
     finishShortcutRecording()
     picker.deactivate()
     recordingPanel.hide()
@@ -324,7 +379,10 @@ final class AppModel: ObservableObject {
           includesCursor: snapshot.includesCursor,
           showsMouseClicks: snapshot.showsMouseClicks
         ),
-        configureStream: { [picker] stream in picker.configure(stream: stream) }
+        configureStream: { [picker, isPickerDrivenCapture] stream in
+          guard isPickerDrivenCapture else { return }
+          picker.configure(stream: stream)
+        }
       )
       guard ownsStartingWorkflow(id) else {
         await recorder.cancel()
@@ -474,7 +532,7 @@ final class AppModel: ObservableObject {
       ? "Copied \(artifact.lastPathComponent)"
       : "Saved \(deliveredURL.lastPathComponent)"
     clearActiveWorkflow()
-    try? await artifacts.prune()
+    try? await artifacts.prune(preserving: [artifact])
   }
 
   private func failWorkflow(_ error: Error, recoveryCandidate: URL? = nil) async {
@@ -503,6 +561,8 @@ final class AppModel: ObservableObject {
   private func stopCaptureUI() {
     autoStopTask?.cancel()
     autoStopTask = nil
+    resolveTask?.cancel()
+    resolveTask = nil
     recordingPanel.hide()
     picker.deactivate()
   }
