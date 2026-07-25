@@ -9,7 +9,7 @@ struct MenuBarContent: View {
 
   var body: some View {
     if let keyEquivalent = model.settings.shortcut.menuKeyEquivalent {
-      Button("Capture Window…") {
+      Button("Capture Frontmost Window") {
         model.requestCapture()
       }
       .keyboardShortcut(
@@ -18,11 +18,16 @@ struct MenuBarContent: View {
       )
       .disabled(!model.canCapture)
     } else {
-      Button("Capture Window…  \(model.settings.shortcut.displayName)") {
+      Button("Capture Frontmost Window  \(model.settings.shortcut.displayName)") {
         model.requestCapture()
       }
       .disabled(!model.canCapture)
     }
+
+    Button("Choose Window to Capture…") {
+      model.requestCaptureWithPicker()
+    }
+    .disabled(!model.canCapture)
 
     Button("Stop Recording") {
       Task { await model.stopRecording() }
@@ -36,6 +41,11 @@ struct MenuBarContent: View {
     } else {
       Text(model.statusMessage)
     }
+
+    Button("Re-copy Last Recording to Clipboard") {
+      model.recopyLastRecording()
+    }
+    .disabled(!model.hasLastArtifact)
 
     Button("Save Last Recording As…") {
       model.saveLastRecordingAs()

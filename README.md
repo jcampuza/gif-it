@@ -1,8 +1,9 @@
 # Gif It
 
 Gif It is a small, native macOS menu-bar app for recording a window as a GIF
-or MP4. It uses Apple's system window picker, captures the cursor and optional
-click rings, then copies the result to the clipboard or saves it to a folder.
+or MP4. The shortcut records whichever window is already in front, captures the
+cursor and optional click rings, then copies the result to the clipboard or
+saves it to a folder.
 
 The app is built with SwiftUI, AppKit, ScreenCaptureKit, AVFoundation, and
 Image I/O. It has no third-party dependencies and does not require an Xcode
@@ -10,24 +11,31 @@ project.
 
 ## How it works
 
-1. Press the global shortcut or choose **Capture Window…** from the menu bar.
-2. Use macOS's **Share This Window** control to select a window.
-3. Interact with the window while Gif It records it.
-4. Press the shortcut again, choose **Stop Recording**, or use the floating
+1. Press the global shortcut or choose **Capture Frontmost Window** from the
+   menu bar. Recording starts immediately on the window that is already in
+   front, so focus is never taken away from it.
+2. Interact with the window while Gif It records it.
+3. Press the shortcut again, choose **Stop Recording**, or use the floating
    Stop control.
-5. Gif It converts and delivers the recording immediately.
+4. Gif It converts and delivers the recording immediately.
+
+To record a window that is not in front, choose **Choose Window to Capture…**
+and pick it with macOS's **Share This Window** control.
 
 The default shortcut is `Control-Option-G`. It can be changed in Settings.
 
 ## Features
 
-- Native macOS single-window picker
+- Frontmost-window capture with no picker to click through
+- Optional macOS single-window picker for background windows
 - GIF and silent MP4 output
 - Cursor capture and native mouse-click rings
 - Configurable global start/stop shortcut
 - Clipboard delivery or a persistent destination folder
 - Floating recording indicator and menu-bar status
 - Automatic stop after 30 seconds
+- **Re-copy Last Recording to Clipboard** to restore a recording after the
+  clipboard has moved on
 - Recovery through **Save Last Recording As…** when conversion or delivery
   fails after a usable recording exists
 - No network access, telemetry, or external encoder
@@ -115,7 +123,9 @@ packaged app.
 GIF clipboard delivery publishes both GIF data and a file URL. MP4 clipboard
 delivery publishes a persistent file URL. Clipboard artifacts are retained in
 the app cache for compatibility with applications that read them after the
-paste operation.
+paste operation. The most recent recording is exempt from cache pruning and can
+be put back on the clipboard at any time with **Re-copy Last Recording to
+Clipboard**.
 
 ## Failure recovery
 
@@ -175,9 +185,10 @@ a SHA-256 checksum, and attaches both files to the GitHub Release.
 
 ## Current scope
 
-Gif It intentionally uses Apple's system content-sharing picker. The picker and
-its **Share This Window** confirmation UI are owned by macOS and cannot be
-restyled by the app.
+Explicit window selection uses Apple's system content-sharing picker. The
+picker, its ordering, and its **Share This Window** confirmation UI are owned by
+macOS and cannot be restyled or reordered by the app, which is why the default
+shortcut resolves the frontmost window itself instead.
 
 Region capture, audio, trimming, captions, editing, launch at login, App Store
 sandboxing, and an alternate custom window picker are not currently included.

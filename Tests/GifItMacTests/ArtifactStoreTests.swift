@@ -103,6 +103,32 @@ private final class PasteboardItemStub: ArtifactPasteboardItemBuilding {
   #expect(!remaining.contains("stale.mp4"))
 }
 
+@Test func artifactStorePruneKeepsPreservedArtifactsRegardlessOfAge() async throws {
+  let root = FileManager.default.temporaryDirectory
+    .appendingPathComponent(UUID().uuidString, isDirectory: true)
+  try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+  defer { try? FileManager.default.removeItem(at: root) }
+  let now = Date()
+  let keeper = root.appendingPathComponent("keeper.gif")
+  try Data([1]).write(to: keeper)
+  try FileManager.default.setAttributes(
+    [.modificationDate: now.addingTimeInterval(-90_000)],
+    ofItemAtPath: keeper.path
+  )
+  let stale = root.appendingPathComponent("stale.gif")
+  try Data([2]).write(to: stale)
+  try FileManager.default.setAttributes(
+    [.modificationDate: now.addingTimeInterval(-90_000)],
+    ofItemAtPath: stale.path
+  )
+  let store = ArtifactStore(rootURL: root)
+
+  try await store.prune(now: now, limit: 10, preserving: [keeper])
+
+  let remaining = try FileManager.default.contentsOfDirectory(atPath: root.path)
+  #expect(remaining == ["keeper.gif"])
+}
+
 @Test func transactionalReplacementPreservesExistingDestinationWhenStagingFails() throws {
   let root = FileManager.default.temporaryDirectory
     .appendingPathComponent(UUID().uuidString, isDirectory: true)

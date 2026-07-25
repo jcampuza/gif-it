@@ -44,7 +44,14 @@ public actor ArtifactStore {
     try? fileManager.removeItem(at: url)
   }
 
-  public func prune(now: Date = Date(), maximumAge: TimeInterval = 86_400, limit: Int = 10) throws {
+  /// Removes stale captures. URLs in `preserving` are kept regardless of age or position so
+  /// the most recent recording stays available for re-copying long after it was delivered.
+  public func prune(
+    now: Date = Date(),
+    maximumAge: TimeInterval = 86_400,
+    limit: Int = 10,
+    preserving: Set<URL> = []
+  ) throws {
     try ensureRoot()
     let keys: Set<URLResourceKey> = [.contentModificationDateKey, .isRegularFileKey]
     let entries = try fileManager.contentsOfDirectory(
@@ -52,8 +59,10 @@ public actor ArtifactStore {
       includingPropertiesForKeys: Array(keys),
       options: [.skipsHiddenFiles]
     )
+    let kept = Set(preserving.map(\.standardizedFileURL))
     let files = entries.compactMap { url -> (URL, Date)? in
       guard
+        !kept.contains(url.standardizedFileURL),
         let values = try? url.resourceValues(forKeys: keys),
         values.isRegularFile == true
       else { return nil }
