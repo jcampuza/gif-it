@@ -67,8 +67,8 @@ struct MenuBarContent: View {
   }
 }
 
-private extension GlobalShortcut {
-  var menuKeyEquivalent: KeyEquivalent? {
+extension GlobalShortcut {
+  fileprivate var menuKeyEquivalent: KeyEquivalent? {
     switch keyLabel {
     case "↩": .return
     case "⇥": .tab
@@ -85,7 +85,7 @@ private extension GlobalShortcut {
     }
   }
 
-  var menuEventModifiers: EventModifiers {
+  fileprivate var menuEventModifiers: EventModifiers {
     var value: EventModifiers = []
     if modifiers.contains(.command) { value.insert(.command) }
     if modifiers.contains(.option) { value.insert(.option) }
